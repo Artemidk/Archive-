@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Архив сайтов</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
-  <link rel="stylesheet" href="/app.css">
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
   <header class="top">
@@ -42,6 +42,7 @@
         <h2>Сохранённые сайты <span id="count" class="count"></span></h2>
         <input id="search" type="search" placeholder="Поиск…">
       </div>
+      <p id="setup" class="msg err" hidden>Архив не настроен: заполните apiUrl и sitesUrl в config.js.</p>
       <div id="list" class="grid"></div>
       <p id="empty" class="empty" hidden>Пока здесь пусто — загрузите первый сайт.</p>
     </section>
@@ -63,6 +64,8 @@
     </article>
   </template>
 
-  <script src="/app.js"></script>
+  <script src="config.js"></script>
+  <script src="unzip.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

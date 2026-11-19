@@ -1,2 +1,4 @@
 node_modules/
-data/
+dev/data/
+build/
+.deploy-*.json
