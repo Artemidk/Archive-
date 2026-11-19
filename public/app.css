@@ -20,6 +20,10 @@ h2 { font-size: 20px; margin: 0; }
 .drop:hover, .drop.over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .drop-icon { font-size: 28px; width: 52px; height: 52px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--thumb); }
 .drop small { color: var(--muted); }
+.pass { display: flex; gap: 14px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+.pass input[type=password] { flex: 1; min-width: 0; }
+.remember { color: var(--muted); font-size: 14px; display: flex; gap: 6px; align-items: center; cursor: pointer; white-space: nowrap; }
+input[type=password] { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; letter-spacing: .05em; }
 .fields { display: grid; grid-template-columns: 1fr 1.4fr auto; gap: 10px; margin-top: 14px; }
 input[type=text], input[type=search] { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; min-width: 0; }
 input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
@@ -53,6 +57,7 @@ button:hover, .btn:hover { border-color: var(--accent); }
 @media (max-width: 720px) {
   .fields { grid-template-columns: 1fr; }
   .drop { padding: 20px; }
+  .pass input[type=password] { flex-basis: 100%; }
   h1 { font-size: 26px; }
   .list-head input { width: 100%; }
 }

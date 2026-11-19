@@ -23,8 +23,63 @@ const MAX_UPLOAD_MB = Number(process.env.MAX_UPLOAD_MB) || 50;
 const MAX_UPLOAD = MAX_UPLOAD_MB * 1024 * 1024;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || '';
 const PUBLIC_DIR = path.join(__dirname, 'public');
+const PASSWORD_LENGTH = 25;
+const PASSWORD_FILE = path.join(DATA_DIR, 'upload-password.txt');
 
 fs.mkdirSync(SITES_DIR, { recursive: true });
+
+// ---------- пароль на загрузку ----------
+// Берётся из UPLOAD_PASSWORD; если переменная не задана — генерируется
+// один раз (25 символов), сохраняется в DATA_DIR/upload-password.txt
+// и выводится в лог при запуске.
+function generatePassword(len = PASSWORD_LENGTH) {
+  const a = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  let out = '';
+  while (out.length < len) {
+    for (const b of crypto.randomBytes(len * 2)) {
+      if (b < 256 - (256 % a.length) && out.length < len) out += a[b % a.length];
+    }
+  }
+  return out;
+}
+
+function resolveUploadPassword() {
+  const fromEnv = process.env.UPLOAD_PASSWORD;
+  if (fromEnv !== undefined) {
+    if (fromEnv.length !== PASSWORD_LENGTH) {
+      console.error(`UPLOAD_PASSWORD должен быть длиной ровно ${PASSWORD_LENGTH} символов (сейчас ${fromEnv.length}).`);
+      process.exit(1);
+    }
+    return { password: fromEnv, source: 'env' };
+  }
+  try {
+    const saved = fs.readFileSync(PASSWORD_FILE, 'utf8').trim();
+    if (saved.length === PASSWORD_LENGTH) return { password: saved, source: 'file' };
+  } catch { /* файла ещё нет */ }
+  const password = generatePassword();
+  fs.writeFileSync(PASSWORD_FILE, password + '\n', { mode: 0o600 });
+  return { password, source: 'generated' };
+}
+
+const UPLOAD = resolveUploadPassword();
+const UPLOAD_HASH = crypto.createHash('sha256').update(UPLOAD.password).digest();
+
+function checkUploadPassword(given) {
+  const h = crypto.createHash('sha256').update(String(given || '')).digest();
+  return crypto.timingSafeEqual(h, UPLOAD_HASH);
+}
+
+// Простая защита от перебора: не больше 10 неверных попыток в минуту с одного IP.
+const failures = new Map();
+function tooManyFailures(ip) {
+  const now = Date.now();
+  const list = (failures.get(ip) || []).filter((t) => now - t < 60_000);
+  failures.set(ip, list);
+  return list.length >= 10;
+}
+const clientIp = (req) => String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress;
+setInterval(() => { const now = Date.now(); for (const [ip, l] of failures) if (!l.some((t) => now - t < 60_000)) failures.delete(ip); }, 60_000).unref();
+const noteFailure = (ip) => failures.get(ip).push(Date.now());
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.htm': 'text/html; charset=utf-8',
@@ -234,6 +289,12 @@ async function handle(req, res) {
     return sendJSON(res, 200, (await loadAll()).map(publicMeta));
   }
   if (pathname === '/api/sites' && req.method === 'POST') {
+    const ip = clientIp(req);
+    if (tooManyFailures(ip)) { req.resume(); return sendJSON(res, 429, { error: 'Слишком много попыток, подождите минуту' }); }
+    if (!checkUploadPassword(hdr(req, 'x-upload-password'))) {
+      noteFailure(ip); req.resume();
+      return sendJSON(res, 401, { error: 'Неверный пароль для загрузки' });
+    }
     const filename = path.basename(hdr(req, 'x-filename') || 'site.html');
     const body = await readBody(req, MAX_UPLOAD);
     if (!body.length) return sendJSON(res, 400, { error: 'Пустой файл' });
@@ -279,6 +340,8 @@ if (require.main === module) {
   server.listen(PORT, HOST, () => {
     console.log(`Архив сайтов запущен: http://localhost:${PORT}`);
     console.log(`Данные хранятся в ${DATA_DIR}`);
+    if (UPLOAD.source === 'env') console.log('Пароль на загрузку задан через UPLOAD_PASSWORD');
+    else console.log(`Пароль на загрузку (${UPLOAD.source === 'generated' ? 'создан сейчас' : 'из файла'} ${PASSWORD_FILE}): ${UPLOAD.password}`);
   });
 }
 

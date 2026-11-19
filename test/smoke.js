@@ -6,6 +6,8 @@ const fs = require('fs');
 const path = require('path');
 const zlib = require('zlib');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'archive-test-'));
+const PASSWORD = 'Test-Password-1234567890X'; // 25 символов
+process.env.UPLOAD_PASSWORD = PASSWORD;
 const { server } = require('../server');
 
 function makeZip(entries) {
@@ -27,7 +29,13 @@ function makeZip(entries) {
 (async () => {
   await new Promise((r) => server.listen(0, r));
   const base = `http://127.0.0.1:${server.address().port}`;
-  const up = (name, body, title = '') => fetch(`${base}/api/sites`, { method: 'POST', body, headers: { 'X-Filename': encodeURIComponent(name), 'X-Title': encodeURIComponent(title) } });
+  const up = (name, body, title = '', pass = PASSWORD) => fetch(`${base}/api/sites`, { method: 'POST', body, headers: { 'X-Filename': encodeURIComponent(name), 'X-Title': encodeURIComponent(title), 'X-Upload-Password': encodeURIComponent(pass) } });
+
+  // без пароля и с неверным паролем загрузка запрещена
+  let r0 = await fetch(`${base}/api/sites`, { method: 'POST', body: '<p>x</p>', headers: { 'X-Filename': 'a.html' } });
+  assert.strictEqual(r0.status, 401);
+  r0 = await up('a.html', '<p>x</p>', '', 'wrong-password-wrong-pass');
+  assert.strictEqual(r0.status, 401);
 
   let r = await up('page.html', '<html><head><title>Привет, мир</title></head><body>hello</body></html>');
   assert.strictEqual(r.status, 201);
@@ -58,7 +66,7 @@ function makeZip(entries) {
   assert.strictEqual(r.status, 400);
 
   r = await fetch(`${base}/api/sites`);
-  assert.strictEqual((await r.json()).length, 2);
+  assert.strictEqual((await r.json()).length, 2); // неудачные попытки ничего не сохранили
 
   r = await fetch(`${base}/api/sites/${a.id}`, { method: 'DELETE', headers: { 'X-Delete-Key': 'wrong' } });
   assert.strictEqual(r.status, 403);
@@ -66,6 +74,15 @@ function makeZip(entries) {
   assert.strictEqual(r.status, 204);
   r = await fetch(`${base}/s/${a.id}/`);
   assert.strictEqual(r.status, 404);
+
+  // автогенерация пароля длиной 25 символов, если UPLOAD_PASSWORD не задан
+  const { execFileSync } = require('child_process');
+  const dir2 = fs.mkdtempSync(path.join(os.tmpdir(), 'archive-test-'));
+  const env = { ...process.env, DATA_DIR: dir2 }; delete env.UPLOAD_PASSWORD;
+  execFileSync(process.execPath, ['-e', "require('./server')"], { cwd: path.join(__dirname, '..'), env });
+  const gen = fs.readFileSync(path.join(dir2, 'upload-password.txt'), 'utf8').trim();
+  assert.strictEqual(gen.length, 25);
+  fs.rmSync(dir2, { recursive: true, force: true });
 
   console.log('✓ все проверки пройдены');
   server.close();

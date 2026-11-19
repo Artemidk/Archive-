@@ -5,6 +5,9 @@ const loadKeys = () => { try { return JSON.parse(localStorage.getItem(KEYS)) || 
 const saveKey = (id, key) => { try { const k = loadKeys(); k[id] = key; localStorage.setItem(KEYS, JSON.stringify(k)); } catch {} };
 const dropKey = (id) => { try { const k = loadKeys(); delete k[id]; localStorage.setItem(KEYS, JSON.stringify(k)); } catch {} };
 
+const PASS = 'archive-upload-password';
+try { const p = localStorage.getItem(PASS); if (p) { $('#password').value = p; $('#remember').checked = true; } } catch {}
+
 let sites = [];
 let file = null;
 
@@ -39,10 +42,13 @@ drop.addEventListener('drop', (e) => pick(e.dataTransfer.files[0]));
 $('#form').addEventListener('submit', (e) => {
   e.preventDefault();
   if (!file) return;
+  const password = $('#password').value;
+  if (password.length !== 25) { msg(`Пароль должен быть длиной 25 символов (сейчас ${password.length})`, 'err'); $('#password').focus(); return; }
   const xhr = new XMLHttpRequest();
   xhr.open('POST', '/api/sites');
   xhr.setRequestHeader('Content-Type', 'application/octet-stream');
   xhr.setRequestHeader('X-Filename', encodeURIComponent(file.name));
+  xhr.setRequestHeader('X-Upload-Password', encodeURIComponent(password));
   xhr.setRequestHeader('X-Title', encodeURIComponent($('#title').value));
   xhr.setRequestHeader('X-Description', encodeURIComponent($('#desc').value));
   const bar = $('#progress'); bar.hidden = false; bar.firstElementChild.style.width = '0';
@@ -55,15 +61,19 @@ $('#form').addEventListener('submit', (e) => {
     try { data = JSON.parse(xhr.responseText); } catch {}
     if (xhr.status === 201) {
       saveKey(data.id, data.deleteKey);
+      try { if ($('#remember').checked) localStorage.setItem(PASS, password); else localStorage.removeItem(PASS); } catch {}
       sites.unshift(data);
       render();
       const url = siteUrl(data.id);
       msg(`Сохранено! Постоянная ссылка: <a href="${url}" target="_blank" rel="noopener">${url}</a>`, 'ok', true);
+      const keep = $('#password').value, rem = $('#remember').checked;
       $('#form').reset(); file = null;
+      $('#password').value = keep; $('#remember').checked = rem;
       $('#drop-text').innerHTML = '<b>Перетащите файл сюда</b> или нажмите, чтобы выбрать<br><small>.html, .htm или .zip (сайт с картинками и стилями)</small>';
     } else {
       $('#submit').disabled = false;
       msg(data.error || `Ошибка загрузки (${xhr.status})`, 'err');
+      if (xhr.status === 401) { try { localStorage.removeItem(PASS); } catch {} $('#password').select(); }
     }
   };
   xhr.onerror = () => { bar.hidden = true; $('#submit').disabled = false; msg('Не удалось связаться с сервером', 'err'); };
@@ -111,6 +121,7 @@ function render() {
 }
 
 $('#search').addEventListener('input', render);
+$('#remember').addEventListener('change', (e) => { if (!e.target.checked) try { localStorage.removeItem(PASS); } catch {} });
 
 fetch('/api/sites').then((r) => r.json()).then((d) => { sites = d; render(); })
   .catch(() => msg('Не удалось загрузить список сайтов', 'err'));
