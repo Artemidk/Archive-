@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Архив сайтов</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗄️</text></svg>">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>🗄️ Архив сайтов</h1>
+      <p class="sub">Загрузите статический сайт — HTML-файл или ZIP-архив — и он навсегда останется доступен по постоянной ссылке.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="card upload">
+      <form id="form">
+        <label id="drop" class="drop" for="file">
+          <input id="file" type="file" accept=".html,.htm,.zip,text/html,application/zip" hidden>
+          <span class="drop-icon">⬆</span>
+          <span id="drop-text"><b>Перетащите файл сюда</b> или нажмите, чтобы выбрать<br><small>.html, .htm или .zip (сайт с картинками и стилями)</small></span>
+        </label>
+        <div class="fields">
+          <input id="title" type="text" maxlength="200" placeholder="Название (по умолчанию — из &lt;title&gt;)">
+          <input id="desc" type="text" maxlength="1000" placeholder="Описание (необязательно)">
+          <button id="submit" type="submit" disabled>Сохранить в архив</button>
+        </div>
+        <div id="progress" class="progress" hidden><div></div></div>
+        <p id="msg" class="msg" role="status"></p>
+      </form>
+    </section>
+
+    <section>
+      <div class="list-head">
+        <h2>Сохранённые сайты <span id="count" class="count"></span></h2>
+        <input id="search" type="search" placeholder="Поиск…">
+      </div>
+      <div id="list" class="grid"></div>
+      <p id="empty" class="empty" hidden>Пока здесь пусто — загрузите первый сайт.</p>
+    </section>
+  </main>
+
+  <template id="tpl">
+    <article class="site">
+      <a class="thumb" target="_blank" rel="noopener"><iframe loading="lazy" tabindex="-1" sandbox="allow-scripts" scrolling="no"></iframe></a>
+      <div class="info">
+        <h3><a class="name" target="_blank" rel="noopener"></a></h3>
+        <p class="desc"></p>
+        <p class="meta"></p>
+        <div class="actions">
+          <a class="btn open" target="_blank" rel="noopener">Открыть</a>
+          <button class="btn copy" type="button">Ссылка</button>
+          <button class="btn danger del" type="button" hidden>Удалить</button>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <script src="/app.js"></script>
+</body>
+</html>

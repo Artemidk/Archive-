@@ -1,0 +1,12 @@
+{
+  "name": "site-archive",
+  "version": "1.0.0",
+  "description": "Архив статических сайтов: загрузка HTML/ZIP и постоянный просмотр",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/smoke.js"
+  },
+  "engines": { "node": ">=18" },
+  "license": "MIT"
+}
